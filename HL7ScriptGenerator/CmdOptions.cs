@@ -12,8 +12,10 @@ namespace HL7ScriptGenerator
     {
         [Option('c', "Count", Required = true, HelpText = "Count")]
         public int Count { get; set; }
-        [Option('f', "FileName", Required = true, HelpText = "File Name")]
+        [Option('f', "FileNames", Required = true, HelpText = "File Name(s), seperated by ','")]
         public string FileName { get; set; }
+        [Option('m', "Mode", Required = true, HelpText = "Event Start/Stop Mode, 1 for 112233 and 2 for 123123")]
+        public int Mode { get; set; }
         [HelpOption]
         public string GetUsage()
         {

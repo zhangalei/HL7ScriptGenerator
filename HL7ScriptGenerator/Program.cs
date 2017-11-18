@@ -18,7 +18,7 @@ namespace HL7ScriptGenerator
             const string ExampleFileFolder = "ExampleFiles";
             const string ResultFileFolder = "ResultFiles";
             const string Obr = "o-b-r-3-";
-            List<string> command;
+            Dictionary<string, List<string>> commands = new Dictionary<string, List<string>>();
         
             if (isValid)
             {
@@ -26,38 +26,88 @@ namespace HL7ScriptGenerator
                 {
                     try
                     {
-                        var fileName = string.Format($"{Directory.GetCurrentDirectory()}\\{ExampleFileFolder}\\{options.FileName}");
-
-                        using (StreamReader r = new StreamReader(fileName))
+                        string[] files = options.FileName.Split(',');
+                        foreach (string file in files)
                         {
-                            string Hl7String = r.ReadToEnd();
-                            command = Hl7String.Split(new string[] { "\r\n\r\n" },
-                                StringSplitOptions.RemoveEmptyEntries).ToList();
-                        }
+                            var fileName = string.Format($"{Directory.GetCurrentDirectory()}\\{ExampleFileFolder}\\{file}");
 
+                            using (StreamReader r = new StreamReader(fileName))
+                            {
+                                string Hl7String = r.ReadToEnd();
+                                commands[file] = Hl7String.Split(new string[] { "\r\n\r\n" },
+                                    StringSplitOptions.RemoveEmptyEntries).ToList();
+                            }
+                        }
                         bool exists = Directory.Exists(ResultFileFolder);
                         if (!exists)
                         {
                             Directory.CreateDirectory(ResultFileFolder);
                         }
-                        string path = $"{ResultFileFolder}\\{options.FileName}_{options.Count}_{DateTime.Now.ToString("yyyyMMdd_HH.mm.ss.fff", CultureInfo.InvariantCulture)}.txt";
+
+                        string d = DateTime.Now.ToString("yyyyMMdd_HH.mm.ss.fff", CultureInfo.InvariantCulture);
+                        string path = $"{ResultFileFolder}\\{files.Count()}_{files[0]}_{options.Count}_{d}.txt";
+                        string sqlPath = $"{ResultFileFolder}\\{files.Count()}_{files[0]}_{options.Count}_{d}.sql";
+
+                        StringBuilder sbControlId = new StringBuilder();
                         for (int i = 0; i < options.Count; i++)
                         {
-                            foreach (string c in command)
+                            foreach (string file in files)
                             {
-                                string s = c.Trim();
+                                List<string> command = commands[file];
+                                List<string> obr3 = Enumerable.Repeat(string.Empty, command.Count).ToList();
 
-                                StringBuilder sb = new StringBuilder(s.Substring(0, FindStringNumberNIndexPosition(s, '|', 9) + 1));
-                                sb.Append(Guid.NewGuid().ToString("N"));
-                                sb.Append(s.Substring(FindStringNumberNIndexPosition(s, '|', 10), FindStringNumberNIndexPositionInCatalog(s, "OBR", '|', 3) - FindStringNumberNIndexPosition(s, '|', 10) + 1));
-                                sb.Append(Obr);
-                                sb.Append(Guid.NewGuid().ToString("N"));
-                                sb.Append(s.Substring(FindStringNumberNIndexPositionInCatalog(s, "OBR", '|', 4)));
-                                sb.AppendLine();
-                                sb.AppendLine();
-                                File.AppendAllText(path, sb.ToString());
+                                foreach (string c in command)
+                                {
+                                    string s = c.Trim();
+
+                                    StringBuilder sb = new StringBuilder(s.Substring(0, FindStringNumberNIndexPosition(s, '|', 9) + 1));
+                                    string guid = Guid.NewGuid().ToString("N");
+                                    sbControlId.Append($", {guid}");
+                                    sb.Append(guid);
+                                    if (s.Contains($"{Environment.NewLine}OBR|"))
+                                    {
+                                        sb.Append(s.Substring(FindStringNumberNIndexPosition(s, '|', 10), FindStringNumberNIndexPositionInCatalog(s, "OBR", '|', 3) - FindStringNumberNIndexPosition(s, '|', 10) + 1));
+                                        sb.Append(Obr);
+
+                                        int index = command.FindIndex(a => a == c);
+                                        if (options.Mode == 1)
+                                        {
+                                            if (index % 2 == 0)
+                                            {
+                                                obr3[index] = Guid.NewGuid().ToString("N");
+                                                sb.Append(obr3[index]);
+                                            }
+                                            else
+                                            {
+                                                sb.Append(obr3[index - 1]);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (index < command.Count / 2)
+                                            {
+                                                obr3[index] = Guid.NewGuid().ToString("N");
+                                                sb.Append(obr3[index]);
+                                            }
+                                            else
+                                            {
+                                                sb.Append(obr3[index - command.Count / 2]);
+                                            }
+                                        }
+                                        sb.Append(s.Substring(FindStringNumberNIndexPositionInCatalog(s, "OBR", '|', 4)));
+                                    }
+                                    else
+                                    {
+                                        sb.Append(s.Substring(FindStringNumberNIndexPosition(s, '|', 10)));
+                                    }
+                                    sb.AppendLine();
+                                    sb.AppendLine();
+                                    File.AppendAllText(path, sb.ToString());
+
+                                }
                             }
                         }
+                        File.WriteAllText(sqlPath, sbControlId.ToString().Substring(2));
                     }
                     catch (Exception e)
                     {
