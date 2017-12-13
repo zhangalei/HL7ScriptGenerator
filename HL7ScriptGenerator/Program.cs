@@ -18,6 +18,7 @@ namespace HL7ScriptGenerator
             const string ExampleFileFolder = "ExampleFiles";
             const string ResultFileFolder = "ResultFiles";
             const string Obr = "o-b-r-3-";
+            const string Nte = "n-t-e-3-";
             Dictionary<string, List<string>> commands = new Dictionary<string, List<string>>();
         
             if (isValid)
@@ -26,10 +27,10 @@ namespace HL7ScriptGenerator
                 {
                     try
                     {
-                        string[] files = options.FileName.Split(',');
+                        string[] files = options.FileName.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                         foreach (string file in files)
                         {
-                            var fileName = string.Format($"{Directory.GetCurrentDirectory()}\\{ExampleFileFolder}\\{file}");
+                            var fileName = string.Format($"{Directory.GetCurrentDirectory()}\\{ExampleFileFolder}\\{file.Trim()}");
 
                             using (StreamReader r = new StreamReader(fileName))
                             {
@@ -64,7 +65,13 @@ namespace HL7ScriptGenerator
                                     string guid = Guid.NewGuid().ToString("N");
                                     sbControlId.Append($", {guid}");
                                     sb.Append(guid);
-                                    if (s.Contains($"{Environment.NewLine}OBR|"))
+
+                                    if (!s.Contains($"{Environment.NewLine}OBR|") && !s.Contains($"{Environment.NewLine}NTE|"))
+                                    {
+                                        sb.Append(s.Substring(FindStringNumberNIndexPosition(s, '|', 10)));
+                                    }
+
+                                    if (s.Contains($"{Environment.NewLine}OBR|") && !s.Contains($"{Environment.NewLine}NTE|"))
                                     {
                                         sb.Append(s.Substring(FindStringNumberNIndexPosition(s, '|', 10), FindStringNumberNIndexPositionInCatalog(s, "OBR", '|', 3) - FindStringNumberNIndexPosition(s, '|', 10) + 1));
                                         sb.Append(Obr);
@@ -96,10 +103,100 @@ namespace HL7ScriptGenerator
                                         }
                                         sb.Append(s.Substring(FindStringNumberNIndexPositionInCatalog(s, "OBR", '|', 4)));
                                     }
-                                    else
+
+                                    if (!s.Contains($"{Environment.NewLine}OBR|") && s.Contains($"{Environment.NewLine}NTE|"))
                                     {
-                                        sb.Append(s.Substring(FindStringNumberNIndexPosition(s, '|', 10)));
+                                        sb.Append(s.Substring(FindStringNumberNIndexPosition(s, '|', 10), FindStringNumberNIndexPositionInCatalog(s, "NTE", '|', 3) - FindStringNumberNIndexPosition(s, '|', 10) + 1));
+                                        sb.Append(Nte);
+
+                                        int index = command.FindIndex(a => a == c);
+                                        if (options.Mode == 1)
+                                        {
+                                            if (index % 2 == 0)
+                                            {
+                                                obr3[index] = Guid.NewGuid().ToString("N");
+                                                sb.Append(obr3[index]);
+                                            }
+                                            else
+                                            {
+                                                sb.Append(obr3[index - 1]);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (index < command.Count / 2)
+                                            {
+                                                obr3[index] = Guid.NewGuid().ToString("N");
+                                                sb.Append(obr3[index]);
+                                            }
+                                            else
+                                            {
+                                                sb.Append(obr3[index - command.Count / 2]);
+                                            }
+                                        }
+                                        sb.Append(s.Substring(FindStringNumberNIndexPositionInCatalog(s, "NTE", '|', 4)));
                                     }
+
+                                    if (s.Contains($"{Environment.NewLine}OBR|") && s.Contains($"{Environment.NewLine}NTE|"))
+                                    {
+                                        sb.Append(s.Substring(FindStringNumberNIndexPosition(s, '|', 10), FindStringNumberNIndexPositionInCatalog(s, "OBR", '|', 3) - FindStringNumberNIndexPosition(s, '|', 10) + 1));
+                                        sb.Append(Obr);
+
+                                        int index = command.FindIndex(a => a == c);
+                                        if (options.Mode == 1)
+                                        {
+                                            if (index % 2 == 0)
+                                            {
+                                                obr3[index] = Guid.NewGuid().ToString("N");
+                                                sb.Append(obr3[index]);
+                                            }
+                                            else
+                                            {
+                                                sb.Append(obr3[index - 1]);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (index < command.Count / 2)
+                                            {
+                                                obr3[index] = Guid.NewGuid().ToString("N");
+                                                sb.Append(obr3[index]);
+                                            }
+                                            else
+                                            {
+                                                sb.Append(obr3[index - command.Count / 2]);
+                                            }
+                                        }
+
+                                        sb.Append(s.Substring(FindStringNumberNIndexPositionInCatalog(s, "OBR", '|', 4), FindStringNumberNIndexPositionInCatalog(s, "NTE", '|', 3) - FindStringNumberNIndexPositionInCatalog(s, "OBR", '|', 4) + 1));
+                                        sb.Append(Nte);
+
+                                        if (options.Mode == 1)
+                                        {
+                                            if (index % 2 == 0)
+                                            {
+                                                sb.Append(obr3[index]);
+                                            }
+                                            else
+                                            {
+                                                sb.Append(obr3[index - 1]);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (index < command.Count / 2)
+                                            {
+                                                sb.Append(obr3[index]);
+                                            }
+                                            else
+                                            {
+                                                sb.Append(obr3[index - command.Count / 2]);
+                                            }
+                                        }
+
+                                        sb.Append(s.Substring(FindStringNumberNIndexPositionInCatalog(s, "NTE", '|', 4)));
+                                    }
+
                                     sb.AppendLine();
                                     sb.AppendLine();
                                     File.AppendAllText(path, sb.ToString());
